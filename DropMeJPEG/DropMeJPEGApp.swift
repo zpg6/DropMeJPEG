@@ -15,13 +15,19 @@ struct DropMeJPEGApp: App {
     
     var body: some Scene {
         MenuBarExtra("DropMeJPEG", systemImage: "photo") {
-            Text("DropMeJPEG").bold()
+            Text("DropMeJPEG v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0")")
             Divider()
             
             Toggle(isOn: $folderMonitor.isEnabled) {
                 Text(folderMonitor.isEnabled ? "Enabled" : "Disabled")
             }
             
+            Toggle(isOn: $folderMonitor.shouldDeleteOriginal) {
+                Text("Delete original HEIC files")
+            }
+            .disabled(!folderMonitor.isEnabled)
+            
+            Divider()
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }.keyboardShortcut("q")
@@ -36,7 +42,8 @@ class FolderMonitor: ObservableObject {
             isEnabled ? startMonitoring() : stopMonitoring()
         }
     }
-    @Published var shouldDeleteOriginalInputFile = false
+    @Published var delayAfterWrite: TimeInterval = 4
+    @Published var shouldDeleteOriginal: Bool = true
     private var folderURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
     private var monitor: DispatchSourceFileSystemObject?
     private var fileDescriptor: CInt = -1
@@ -83,23 +90,33 @@ class FolderMonitor: ObservableObject {
     
     /// There are some folder changes, this function will handle detecting new HEIC files and converting them to JPEG.
     private func handleFolderChanges() {
-        guard let currentFiles = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) else { return }
+        print("\n⚡️Folder changed... waiting for \(delayAfterWrite) seconds for AirDrop to finish writing any files.")
+        sleep(UInt32(delayAfterWrite)) // Wait for the file to be fully written
+        
+        guard let currentFiles = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) else {
+            print("❌ Failed to list files in folder \(folderURL.path)")
+            return
+        }
         let currentSet = Set(currentFiles)
         
         // Detect newly added files
         let newFiles = currentSet.subtracting(knownFiles)
         knownFiles = currentSet
         
+        if newFiles.isEmpty {
+            print("Nothing new to process.\(shouldDeleteOriginal ? " This may have been our own cleanup operation of original HEIC file." : "")")
+            return
+        }
+        
         // Process new HEIC files
         newFiles
             .filter { $0.uppercased().hasSuffix(".HEIC") }
             .map { folderURL.appendingPathComponent($0) }
             .forEach {
-                
                 convertHEICtoJPEG($0)
             }
     }
-        
+    
     /// Conversion from HEIC to JPEG uses the `sips` command line tool that is built-into macOS.
     private func convertHEICtoJPEG(_ fileURL: URL) {
         print("PROCESSING INPUT URL: \(fileURL)")
@@ -125,10 +142,13 @@ class FolderMonitor: ObservableObject {
             if !outputData.isEmpty { print("convertHEICtoJPEG Output: \(String(data: outputData, encoding: .utf8) ?? "")") }
             if !errorData.isEmpty { print("convertHEICtoJPEG Error: \(String(data: errorData, encoding: .utf8) ?? "")") }
             
-            if process.terminationStatus == 0 {
-                try FileManager.default.removeItem(at: fileURL)
+            if process.terminationStatus == 0 && !outputData.isEmpty {
+                if shouldDeleteOriginal {
+                    try FileManager.default.removeItem(at: fileURL)
+                }
+                print("✅ SIPS command succeeded")
             } else {
-                print("SIPS command failed (status: \(process.terminationStatus))")
+                print("❌ SIPS command failed (status: \(process.terminationStatus))")
             }
         } catch {
             print("convertHEICtoJPEG failed: \(error)")
