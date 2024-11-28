@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSDownloadsDirectoryUsageDescription</key>
+	<string>This app needs access to the Downloads folder to monitor and convert HEIC files to JPEG.</string>
+	<key>NSFileAccessUsageDescription</key>
+	<string>This app needs file access permissions to manage HEIC to JPEG conversions.</string>
+	<key>NSUserSelectedFile</key>
+	<string>This app needs file access permissions to manage HEIC to JPEG conversions.</string>
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+</dict>
+</plist>
