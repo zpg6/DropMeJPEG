@@ -29,14 +29,14 @@ jobs:
 
       - name: Build App
         run: |
-          xcodebuild clean build \
-            -sdk macosx \
-            -configuration Release \
-            -derivedDataPath build
+          if [ $scheme = default ]; then scheme=$(cat default); fi
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
+          xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty && exit ${PIPESTATUS[0]}
 
       - name: Create DMG
         run: |
-          hdiutil create -volname DropMeJPEG -srcfolder build/Release/DropMeJPEG.app build/DropMeJPEG.dmg
+          hdiutil create -volname DropMeJPEG -srcfolder build/Release/DropMeJPEG.app -ov -format UDZO build/DropMeJPEG.dmg
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
