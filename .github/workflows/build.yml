@@ -38,15 +38,3 @@ jobs:
           mkdir -p build
           BUILD_DIR=build
           xcodebuild clean build analyze -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty && exit ${PIPESTATUS[0]}
-          ls -al
-          ls -al build
-
-      - name: Create DMG
-        run: |
-          hdiutil create -volname DropMeJPEG -srcfolder build/Release/DropMeJPEG.app -ov -format UDZO build/DropMeJPEG.dmg
-
-      - name: Upload DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: DropMeJPEG.dmg
-          path: build/DropMeJPEG.dmg
