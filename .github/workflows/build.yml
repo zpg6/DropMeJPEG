@@ -42,19 +42,19 @@ jobs:
           if [ $scheme = default ]; then scheme=$(cat default); fi
           if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild clean archive -scheme "$scheme" -"$filetype_parameter" "$file_to_build" | xcpretty && exit ${PIPESTATUS[0]}
+          xcodebuild clean archive -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -archivePath build/Release/DropMeJPEG.xcarchive | xcpretty && exit ${PIPESTATUS[0]}
 
-      - name: Export
-        env:
-          scheme: ${{ 'default' }}
+      - name: Create DMG
         run: |
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild -exportArchive -archivePath "build/$scheme.xcarchive" -exportPath "build" -exportOptionsPlist "DropMeJPEG/ExportOptions.plist" | xcpretty && exit ${PIPESTATUS[0]}
+          mkdir -p build/Release
+          cp -r DropMeJPEG.app build/Release
+          hdiutil create -volname "DropMeJPEG" -srcfolder build/Release -ov -format UDZO DropMeJPEG.dmg
+          mv DropMeJPEG.dmg build/Release
+          ls -la
+          ls -la build/Release
 
-      - name: Upload
+      - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-build
-          path: build
+          name: DropMeJPEG
+          path: build/Release/DropMeJPEG.dmg
